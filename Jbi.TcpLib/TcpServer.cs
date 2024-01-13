@@ -116,7 +116,9 @@ public sealed class TcpServer(IPEndPoint endPoint) : IDisposable
 		await stream.WriteAsync(sendBuffer, tokenSource.Token);
 	}
 
-	public async Task StopAsync()
+#pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
+	public async ValueTask StopAsync()
+#pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
 	{
 #if NET8_0_OR_GREATER
 		await _cancellationTokenSource.CancelAsync();
