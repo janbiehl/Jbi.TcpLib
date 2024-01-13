@@ -4,6 +4,12 @@
         <Nullable>enable</Nullable>
         <LangVersion>12</LangVersion>
         <TargetFrameworks>net8.0;netstandard2.1</TargetFrameworks>
+        <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+        <Authors>Jan Biehl</Authors>
+        <Description>This is a simple TcpLibrary containing a TcpClient &amp; TcpServer. </Description>
+        <RepositoryUrl>https://github.com/janbiehl/Jbi.TcpLib</RepositoryUrl>
+        <PackageTags>dotnet tcp tcpclient tcpserver</PackageTags>
+        <PackageReleaseNotes>Initial release</PackageReleaseNotes>
     </PropertyGroup>
 
 </Project>
