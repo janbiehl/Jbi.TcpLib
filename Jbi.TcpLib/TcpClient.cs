@@ -55,11 +55,9 @@ public sealed class TcpClient(IPEndPoint endPoint) : IDisposable
 		if (_client is null || !_client.Connected)
 			throw new InvalidOperationException("Client is not connected");
 		
-		using var tokenSource = CancellationTokenSource.CreateLinkedTokenSource(_cancellationTokenSource.Token, cancellationToken);
-
 		// No using statement here, because we want to keep the stream open
 		var stream = _client.GetStream();
-		return stream.WriteAsync(data, tokenSource.Token);
+		return stream.WriteAsync(data, cancellationToken);
 	}
 	
 	public async ValueTask SendDataAsync(IRawConvertable data, CancellationToken cancellationToken = default)
@@ -67,8 +65,6 @@ public sealed class TcpClient(IPEndPoint endPoint) : IDisposable
 		if (_client is null)
 			throw new InvalidOperationException("Client is not connected");
 		
-		using var tokenSource = CancellationTokenSource.CreateLinkedTokenSource(_cancellationTokenSource.Token, cancellationToken);
-
 		// No using statement here, because we want to keep the stream open
 		var stream = _client.GetStream();
 		
@@ -78,7 +74,7 @@ public sealed class TcpClient(IPEndPoint endPoint) : IDisposable
 		// Convert the data into raw data
 		var sendBuffer = data.ConvertToRawData(memoryOwner.Memory);
 		
-		await stream.WriteAsync(sendBuffer, tokenSource.Token);
+		await stream.WriteAsync(sendBuffer, cancellationToken);
 	}
 
 

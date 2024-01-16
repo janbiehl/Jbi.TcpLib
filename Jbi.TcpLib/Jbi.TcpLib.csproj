@@ -11,6 +11,7 @@
         <PackageTags>dotnet tcp tcpclient tcpserver</PackageTags>
         <PackageReleaseNotes>Initial release</PackageReleaseNotes>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <Version>1.0.1</Version>
     </PropertyGroup>
 
 </Project>
