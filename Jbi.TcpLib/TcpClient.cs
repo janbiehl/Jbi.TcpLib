@@ -16,12 +16,7 @@ public sealed class TcpClient(IPEndPoint endPoint) : IDisposable
 
 		_client = new System.Net.Sockets.TcpClient();
 
-#if NET8_0_OR_GREATER
 		await _client.ConnectAsync(endPoint, cancellationToken);
-#else
-		await _client.ConnectAsync(endPoint.Address, endPoint.Port);
-#endif
-
 	}
 
 	public async IAsyncEnumerable<ReadOnlyMemory<byte>> ReadDataAsync(int bufferSize = 1024, [EnumeratorCancellation] CancellationToken cancellationToken = default)

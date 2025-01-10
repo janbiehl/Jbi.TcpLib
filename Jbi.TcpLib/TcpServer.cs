@@ -43,12 +43,8 @@ public sealed class TcpServer(IPEndPoint endPoint) : IDisposable
 		if (_client is not null)
 			throw new InvalidOperationException("Client is already connected");
 
-#if NET8_0_OR_GREATER
 		using var tokenSource = CancellationTokenSource.CreateLinkedTokenSource(_cancellationTokenSource.Token, cancellationToken);
 		_client = await _listener.AcceptTcpClientAsync(tokenSource.Token);
-#else
-		_client = await _listener.AcceptTcpClientAsync();
-#endif
 	}
 
 	/// <summary>
