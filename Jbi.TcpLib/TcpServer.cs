@@ -2,6 +2,7 @@ using System.Buffers;
 using System.Net;
 using System.Net.Sockets;
 using System.Runtime.CompilerServices;
+using System.Text;
 
 namespace Jbi.TcpLib;
 
@@ -29,6 +30,11 @@ public sealed class TcpServer(IPEndPoint endPoint) : IDisposable
 	private System.Net.Sockets.TcpClient? _client;
 
 	/// <summary>
+	/// Encoding to be used when writing strings to the wire 
+	/// </summary>
+	public Encoding Encoding { get; set; } = Encoding.UTF8;
+	
+	/// <summary>
 	/// Starts the server, so that it is able to accept incoming connections
 	/// </summary>
 	public void Start() => _listener.Start();
@@ -55,14 +61,14 @@ public sealed class TcpServer(IPEndPoint endPoint) : IDisposable
 	/// <param name="cancellationToken">Used to cancel the long running operations</param>
 	/// <returns>A async enumerable that always provides the latest data blocks</returns>
 	/// <exception cref="InvalidOperationException">There is no client connected</exception>
-	public async IAsyncEnumerable<ReadOnlyMemory<byte>> ReadDataAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
+	public async IAsyncEnumerable<ReadOnlyMemory<byte>> ReadDataAsync(int bufferSize = 1024, [EnumeratorCancellation] CancellationToken cancellationToken = default)
 	{
 		if (_client is null)
 			throw new InvalidOperationException("Client is not connected");
 
 		using var tokenSource = CancellationTokenSource.CreateLinkedTokenSource(_cancellationTokenSource.Token, cancellationToken);
 		// Rent some memory from the memory pool (avoid allocations)
-		using var memoryOwner = MemoryPool<byte>.Shared.Rent(1024);
+		using var memoryOwner = MemoryPool<byte>.Shared.Rent(bufferSize);
 		
 		// No using statement here, because we do not want to dispose the stream here
 		var stream = _client.GetStream();
@@ -81,6 +87,13 @@ public sealed class TcpServer(IPEndPoint endPoint) : IDisposable
 		}
 	}
 
+	/// <summary>
+	/// Send raw data to the remote partner
+	/// </summary>
+	/// <param name="data">Data to send</param>
+	/// <param name="cancellationToken">Cancel long-running operation</param>
+	/// <returns>A task for the long-running operation</returns>
+	/// <exception cref="InvalidOperationException"></exception>
 	public ValueTask SendDataAsync(ReadOnlyMemory<byte> data, CancellationToken cancellationToken = default)
 	{
 		if (_client is null)
@@ -90,7 +103,28 @@ public sealed class TcpServer(IPEndPoint endPoint) : IDisposable
 		var stream = _client.GetStream();
 		return stream.WriteAsync(data, cancellationToken);
 	}
+	
+	/// <summary>
+	/// Send a string to the remote partner
+	/// </summary>
+	/// <param name="data">The string to send to the partner</param>
+	/// <param name="cancellationToken">Cancel long-running operation</param>
+	public async Task SendDataAsync(string data, CancellationToken cancellationToken = default)
+	{
+		var requiredLength = Encoding.GetByteCount(data);
+		// Rent some memory from the memory pool (avoid allocations)
+		using var memoryOwner = MemoryPool<byte>.Shared.Rent(requiredLength);
 
+		var encodedLength = Encoding.GetBytes(data, memoryOwner.Memory.Span);
+		await SendDataAsync(memoryOwner.Memory[..encodedLength], cancellationToken);
+	}
+
+	/// <summary>
+	/// Send raw convertable data to the remote partner
+	/// </summary>
+	/// <param name="data">Data to send to the partner</param>
+	/// <param name="cancellationToken">Cancel long-running operation</param>
+	/// <exception cref="InvalidOperationException"></exception>
 	public async ValueTask SendDataAsync(IRawConvertable data, CancellationToken cancellationToken = default)
 	{
 		if (_client is null)
@@ -108,23 +142,33 @@ public sealed class TcpServer(IPEndPoint endPoint) : IDisposable
 		await stream.WriteAsync(sendBuffer, cancellationToken);
 	}
 
+	/// <summary>
+	/// Stop listening 
+	/// </summary>
 	public async ValueTask StopAsync()
 	{
-		await _cancellationTokenSource.CancelAsync();
-		_cancellationTokenSource.Dispose();
+		if (!_cancellationTokenSource.IsCancellationRequested)
+		{
+			await _cancellationTokenSource.CancelAsync();
+		}
 		
-		// Reset the client
+		_cancellationTokenSource.Dispose();
 		_client?.Dispose();
 		_client = null;
-		
 		_listener.Stop();
 	}
 
 	/// <inheritdoc />
 	public void Dispose()
 	{
-		_cancellationTokenSource.Cancel();
+		if (!_cancellationTokenSource.IsCancellationRequested)
+		{
+			_cancellationTokenSource.Cancel();
+		}
+		
+		_cancellationTokenSource.Dispose();
 		_client?.Dispose();
-		_listener.Stop();
+		_client = null;
+		_listener.Dispose();
 	}
 }
