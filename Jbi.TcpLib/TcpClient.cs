@@ -34,6 +34,8 @@ public sealed class TcpClient(IPEndPoint endPoint) : IDisposable
 	/// <exception cref="InvalidOperationException"></exception>
 	public async ValueTask ConnectAsync(CancellationToken cancellationToken = default)
 	{
+		using var activity = Telemetry.StartActivity($"{nameof(TcpClient)}.{nameof(ConnectAsync)}");
+		
 		if (_client is not null && _client.Connected)
 			throw new InvalidOperationException("Client is already setup, close the connection first");
 
@@ -52,6 +54,8 @@ public sealed class TcpClient(IPEndPoint endPoint) : IDisposable
 	/// <exception cref="InvalidOperationException"></exception>
 	public async IAsyncEnumerable<ReadOnlyMemory<byte>> ReadDataAsync(int bufferSize = 1024, [EnumeratorCancellation] CancellationToken cancellationToken = default)
 	{
+		using var activity = Telemetry.StartActivity($"{nameof(TcpClient)}.{nameof(ReadDataAsync)}");
+		
 		if (_client is null || !_client.Connected)
 			throw new InvalidOperationException("Client is not connected");
 
@@ -65,6 +69,7 @@ public sealed class TcpClient(IPEndPoint endPoint) : IDisposable
 		
 		while (!tokenSource.IsCancellationRequested)
 		{
+			using var innerActivity = Telemetry.StartActivity($"{nameof(TcpClient)}.{nameof(ReadDataAsync)}Inner");
 			// Read data from the stream asynchronously
 			var bytesRead = await stream.ReadAsync(memoryOwner.Memory, tokenSource.Token);
 
@@ -85,6 +90,8 @@ public sealed class TcpClient(IPEndPoint endPoint) : IDisposable
 	/// <exception cref="InvalidOperationException"></exception>
 	public ValueTask SendDataAsync(ReadOnlyMemory<byte> data, CancellationToken cancellationToken = default)
 	{
+		using var activity = Telemetry.StartActivity($"{nameof(TcpClient)}.{nameof(SendDataAsync)}");
+		
 		if (_client is null || !_client.Connected)
 			throw new InvalidOperationException("Client is not yet connected");
 		
@@ -100,6 +107,8 @@ public sealed class TcpClient(IPEndPoint endPoint) : IDisposable
 	/// <param name="cancellationToken">Cancel long-running operations</param>
 	public async Task SendDataAsync(string data, CancellationToken cancellationToken = default)
 	{
+		using var activity = Telemetry.StartActivity($"{nameof(TcpClient)}.{nameof(SendDataAsync)}");
+		
 		var requiredLength = Encoding.GetByteCount(data);
 		using var memoryOwner = MemoryPool<byte>.Shared.Rent(requiredLength);
 		var encodedLength = Encoding.GetBytes(data, memoryOwner.Memory.Span);
@@ -107,29 +116,11 @@ public sealed class TcpClient(IPEndPoint endPoint) : IDisposable
 	}
 	
 	/// <summary>
-	/// Send raw convertible data to the remote partner
-	/// </summary>
-	/// <param name="data">The data to send to the server</param>
-	/// <param name="cancellationToken">Cancel long-running operations</param>
-	/// <exception cref="InvalidOperationException"></exception>
-	public async ValueTask SendDataAsync(IRawConvertable data, CancellationToken cancellationToken = default)
-	{
-		if (_client is null)
-			throw new InvalidOperationException("Client is not connected");
-		
-		// No using statement here, because we want to keep the stream open
-		var stream = _client.GetStream();
-		
-		using var memoryOwner = MemoryPool<byte>.Shared.Rent(data.RequiredBufferSize);
-		var sendBuffer = data.ConvertToRawData(memoryOwner.Memory);
-		await stream.WriteAsync(sendBuffer, cancellationToken);
-	}
-	
-	/// <summary>
 	/// Close the client connection
 	/// </summary>
 	public void Disconnect()
 	{
+		using var activity = Telemetry.StartActivity($"{nameof(TcpClient)}.{nameof(Disconnect)}");
 		_client?.Close();
 		_client?.Dispose();
 		_client = null;
