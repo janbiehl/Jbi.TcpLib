@@ -9,7 +9,7 @@ using ClientRead = (System.Guid ClientId,  System.ReadOnlyMemory<byte> Data);
 
 namespace Jbi.TcpLib;
 
-internal sealed class TcpServer(IPEndPoint endPoint, int concurrentClients = 10)
+public sealed class TcpServer(IPEndPoint endPoint, int concurrentClients = 10)
 	: IDisposable, IAsyncDisposable
 {
 	private readonly IPEndPoint _endpoint = endPoint;
