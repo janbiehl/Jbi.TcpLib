@@ -81,7 +81,7 @@ public sealed class TcpServer(IPEndPoint endPoint, int concurrentClients = 10)
 	{
 		using var activity = Telemetry.StartActivity($"{nameof(TcpServer)}.{nameof(StopAsync)}");
 		
-		if (_isListening)
+		if (!_isListening)
 		{
 			return;
 		}
