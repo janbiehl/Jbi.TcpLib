@@ -183,6 +183,24 @@ public class TcpServerTest
 			await server.DisposeAsync();
 		}
 	}
+
+	[Fact]
+	public async Task TcpServer_ClientIsRegisteredInternal()
+	{
+		var endpoint = Endpoint;
+		
+		await using TcpServer server = new (endpoint);
+		await server.StartAsync();
+		
+		using System.Net.Sockets.TcpClient client = new ();
+
+		await client.ConnectAsync(endpoint);
+
+		await Task.Delay(5);
+		
+		// Here we want to make sure that the client will be noticed by the server
+		Assert.Single(server.ClientIds);
+	}
 	
 	private static async Task SimulateOneShotSendingClient(IPEndPoint endPoint, ReadOnlyMemory<byte> data)
 	{
