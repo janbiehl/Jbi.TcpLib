@@ -5,7 +5,7 @@ using System.Net.Sockets;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Channels;
-using ClientRead = (System.Guid ClientId,  System.ReadOnlyMemory<byte> Data);
+using ClientRead = (System.Guid ClientId, Jbi.TcpLib.PooledMemory<byte> Data);
 
 namespace Jbi.TcpLib;
 
@@ -115,6 +115,12 @@ public sealed class TcpServer(IPEndPoint endPoint, int concurrentClients = 10)
 		[EnumeratorCancellation] CancellationToken cancellationToken = default)
 	{
 		using var activity = Telemetry.StartActivity($"{nameof(TcpServer)}.{nameof(ReadDataAsync)}");
+
+		if (!_isListening)
+		{
+			throw new InvalidOperationException("Server is not listening");
+		}
+		
 		await foreach (var valueTuple in _receivedChannel.Reader.ReadAllAsync(cancellationToken))
 		{
 			yield return valueTuple;
@@ -247,14 +253,21 @@ public sealed class TcpServer(IPEndPoint endPoint, int concurrentClients = 10)
 	{
 		using var activity = Telemetry.StartActivity($"{nameof(TcpServer)}.{nameof(HandleTcpClientAsync)}");
 		var stream = tcpClient.GetStream();
-		using var memoryOwner = MemoryPool<byte>.Shared.Rent(1024);
+		using var internalMemory = MemoryPool<byte>.Shared.Rent(1024);
 
 		try
 		{
 			int bytesRead;
-			while ((bytesRead = await stream.ReadAsync(memoryOwner.Memory, cancellationToken)) > 0)
+			while ((bytesRead = await stream.ReadAsync(internalMemory.Memory, cancellationToken)) > 0)
 			{
-				await dataChannel.WriteAsync((clientId, memoryOwner.Memory[..bytesRead].ToArray()), cancellationToken);
+				// Rent a piece of memory to pass the data to the consumer
+				// No dispose here, as the user is resposible for doing so
+				var consumerMemory = MemoryPool<byte>.Shared.Rent(bytesRead);
+				// Copy data - from our buffer to the consumers buffer
+				internalMemory.Memory[..bytesRead].CopyTo(consumerMemory.Memory);
+				// Create a pooled memory 
+				PooledMemory<byte> pooledMemory = new (consumerMemory, consumerMemory.Memory[..bytesRead]);
+				await dataChannel.WriteAsync((clientId, pooledMemory), cancellationToken);
 			}
 		}
 		finally

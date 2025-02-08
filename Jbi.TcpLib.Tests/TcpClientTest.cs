@@ -52,10 +52,18 @@ public class TcpClientTest
 		
 		await client.ConnectAsync();
 		
-		await foreach (var readOnlyMemory in client.ReadDataAsync())
+		await foreach (var pooledMemory in client.ReadDataAsync())
 		{
-			var data = Encoding.UTF8.GetString(readOnlyMemory.Span);
-			Assert.Equal("Hello World!", data);
+			try
+			{
+				var data = Encoding.UTF8.GetString(pooledMemory.Memory.Span);
+				Assert.Equal("Hello World!", data);
+			}
+			finally
+			{
+				pooledMemory.Dispose();
+			}
+			
 #pragma warning disable S1751
 			break; // We want to break here after the first data chunk
 #pragma warning restore S1751
@@ -75,9 +83,16 @@ public class TcpClientTest
 		
 		await client.ConnectAsync();
 		
-		await foreach (var readOnlyMemory in client.ReadDataAsync())
+		await foreach (var pooledMemory in client.ReadDataAsync())
 		{
-			Assert.Equal(guid.ToByteArray(), readOnlyMemory);
+			try
+			{
+				Assert.Equal(guid.ToByteArray(), pooledMemory.Memory);
+			}
+			finally
+			{
+				pooledMemory.Dispose();
+			}
 #pragma warning disable S1751
 			break; // We want to break here after the first data chunk
 #pragma warning restore S1751
@@ -99,15 +114,22 @@ public class TcpClientTest
 		await client.ConnectAsync();
 
 		var i = 0;
-		await foreach (var readOnlyMemory in client.ReadDataAsync())
+		await foreach (var pooledMemory in client.ReadDataAsync())
 		{
-			Range range = new (i * 1024, i * 1024 + 1024);
-			Assert.Equal(bytes.Span[range], readOnlyMemory.Span);
-			i++;
-
-			if (i == 10)
+			try
 			{
-				break;
+				Range range = new (i * 1024, i * 1024 + 1024);
+				Assert.Equal(bytes.Span[range], pooledMemory.Span);
+				i++;
+
+				if (i == 10)
+				{
+					break;
+				}
+			}
+			finally
+			{
+				pooledMemory.Dispose();
 			}
 		}
 	}
@@ -125,10 +147,10 @@ public class TcpClientTest
 		await client.ConnectAsync();
 
 		var i = 0;
-		await foreach (var readOnlyMemory in client.ReadDataAsync(512))
+		await foreach (var pooledMemory in client.ReadDataAsync(512))
 		{
 			Range range = new (i * 512, i * 512 + 512);
-			Assert.Equal(bytes.Span[range], readOnlyMemory.Span);
+			Assert.Equal(bytes.Span[range], pooledMemory.Span);
 			i++;
 
 			if (i == 10)

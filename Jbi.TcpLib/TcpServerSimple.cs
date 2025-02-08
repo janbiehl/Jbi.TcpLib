@@ -5,10 +5,10 @@ namespace Jbi.TcpLib;
 
 /// <summary>
 /// Represents a simple TCP server. It is able to accept one client at a time, and read/write data from/to it.
-/// It has no interpreting logic, so it is up to the user to interpret the raw data that was received.
-/// Also the user has to convert the data into raw data before sending it. 
+/// It has no interpreting logic, so it is up to the user to interpret the raw data that was received,
+/// also the user has to convert the data into raw data before sending it. 
 /// </summary>
-/// <param name="endPoint"></param>
+/// <param name="endPoint">Endpoint to listen to</param>
 public sealed class TcpServerSimple(IPEndPoint endPoint) 
 	: IDisposable
 {
@@ -26,7 +26,7 @@ public sealed class TcpServerSimple(IPEndPoint endPoint)
 		return _tcpServer.StopAsync(cancellationToken);
 	}
 	
-	public async IAsyncEnumerable<ReadOnlyMemory<byte>> ReadAllAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
+	public async IAsyncEnumerable<PooledMemory<byte>> ReadAllAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
 	{
 		using var activity = Telemetry.StartActivity($"{nameof(TcpServerSimple)}.{nameof(ReadAllAsync)}");
 		await foreach (var (_, data) in _tcpServer.ReadDataAsync(cancellationToken))

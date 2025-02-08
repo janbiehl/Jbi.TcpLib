@@ -52,7 +52,7 @@ public sealed class TcpClient(IPEndPoint endPoint) : IDisposable
 	/// <param name="cancellationToken">Cancel long-running operations</param>
 	/// <returns>async enumerable memory chunks</returns>
 	/// <exception cref="InvalidOperationException"></exception>
-	public async IAsyncEnumerable<ReadOnlyMemory<byte>> ReadDataAsync(int bufferSize = 1024, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+	public async IAsyncEnumerable<PooledMemory<byte>> ReadDataAsync(int bufferSize = 1024, [EnumeratorCancellation] CancellationToken cancellationToken = default)
 	{
 		using var activity = Telemetry.StartActivity($"{nameof(TcpClient)}.{nameof(ReadDataAsync)}");
 		
@@ -64,12 +64,14 @@ public sealed class TcpClient(IPEndPoint endPoint) : IDisposable
 		// No using statement here, because we want to keep the stream open
 		var stream = _client.GetStream();
 		
-		// Rent some memory from the memory pool (avoid allocations)
-		using var memoryOwner = MemoryPool<byte>.Shared.Rent(bufferSize);
-		
 		while (!tokenSource.IsCancellationRequested)
 		{
 			using var innerActivity = Telemetry.StartActivity($"{nameof(TcpClient)}.{nameof(ReadDataAsync)}Inner");
+			
+			// Rent some memory from the memory pool (avoid allocations)
+			// We are not disposing here -> The consumer is responsible of doing so
+			var memoryOwner = MemoryPool<byte>.Shared.Rent(bufferSize);
+			
 			// Read data from the stream asynchronously
 			var bytesRead = await stream.ReadAsync(memoryOwner.Memory, tokenSource.Token);
 
@@ -77,7 +79,7 @@ public sealed class TcpClient(IPEndPoint endPoint) : IDisposable
 			if (bytesRead == 0)
 				break;
 			
-			yield return memoryOwner.Memory[..bytesRead];
+			yield return new PooledMemory<byte>(memoryOwner, memoryOwner.Memory[..bytesRead]);
 		}
 	}
 

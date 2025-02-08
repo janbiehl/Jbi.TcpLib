@@ -119,11 +119,18 @@ public class TcpServerTest
 
 		await SimulateOneShotSendingClient(endpoint, buffer);
 
-		await foreach (var (clientId, data) in server.ReadDataAsync())
+		await foreach (var (clientId, pooledMemory) in server.ReadDataAsync())
 		{
-			Assert.NotEqual(Guid.Empty, clientId);
-			Assert.Equal(buffer, data);
-			break; // we expect only one chunk of data
+			try
+			{
+				Assert.NotEqual(Guid.Empty, clientId);
+				Assert.Equal(buffer, pooledMemory.Memory);
+				break; // we expect only one chunk of data
+			}
+			finally
+			{
+				pooledMemory.Dispose();
+			}
 		}
 	}
 	
@@ -139,16 +146,23 @@ public class TcpServerTest
 		await SimulateOneShotSendingClient(endpoint, buffer);
 
 		var i = 0;
-		await foreach (var (clientId, chunk) in server.ReadDataAsync())
+		await foreach (var (clientId, pooledMemory) in server.ReadDataAsync())
 		{
-			Range range = new (i * 1024, i * 1024 + 1024);
-			Assert.NotEqual(Guid.Empty, clientId);
-			Assert.Equal(buffer[range], chunk);
-			i++;
-
-			if (i == 4)
+			try
 			{
-				break;
+				Range range = new (i * 1024, i * 1024 + 1024);
+				Assert.NotEqual(Guid.Empty, clientId);
+				Assert.Equal(buffer[range], pooledMemory.Memory);
+				i++;
+
+				if (i == 4)
+				{
+					break;
+				}
+			}
+			finally
+			{
+				pooledMemory.Dispose();
 			}
 		}
 	}
