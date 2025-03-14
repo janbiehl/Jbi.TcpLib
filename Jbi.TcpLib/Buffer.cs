@@ -30,17 +30,50 @@ public sealed class Buffer(int size) : IDisposable
     public int Size { get; } = size;
 
     /// <summary>
+    /// Checks that the buffer has the capacity to hold more data
+    /// </summary>
+    /// <param name="amount">The amount of bytes to check</param>
+    /// <returns>True when there is enough capacity remaining</returns>
+    public bool HasCapacity(int amount) => Position + amount <= Size;
+
+    /// <summary>
+    /// Reset the buffer to an empty state
+    /// </summary>
+    public void Clear()
+    {
+        Position = 0;
+        _buffer.Memory.Span.Clear();
+    }
+
+    /// <summary>
+    /// Remove the leading amount of bytes from the buffer.
+    /// </summary>
+    /// <param name="amount">The number of bytes to remove from the left</param>
+    public void RemoveLeading(int amount)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(amount);
+        
+        if (amount > Position)
+        {
+            throw new InvalidOperationException("There aren't enough bytes to remove");
+        }
+
+        Memory[amount..].CopyTo(_buffer.Memory);
+        Position -= amount;
+    }
+    
+    /// <summary>
     /// Writes data to the buffer.
     /// </summary>
     /// <param name="span">The data to write.</param>
     /// <exception cref="InvalidOperationException">Thrown if the buffer is full.</exception>
     public void Write(ReadOnlySpan<byte> span)
     {
-        if (Position + span.Length > Size)
+        if (!HasCapacity(span.Length))
         {
-            throw new InvalidOperationException("Buffer is full");
+            throw new InvalidOperationException("Buffer has no capacity");
         }
-
+        
         span.CopyTo(_buffer.Memory[Position..].Span);
         Position += span.Length;
     }
