@@ -1,7 +1,7 @@
 namespace Jbi.TcpLib.Handler;
 
 public sealed class FixedLengthMessageHandler 
-	: IMessageHandler
+	: IMessageHandler, IDisposable
 {
 	private readonly int _messageLength;
 	private readonly Buffer _buffer;
@@ -30,7 +30,7 @@ public sealed class FixedLengthMessageHandler
 
 		_buffer.Write(bytes);
 	}
-	
+
 	public IReadOnlyCollection<PooledMemory<byte>> CheckForMessages()
 	{
 		List<PooledMemory<byte>> messages = [];
@@ -51,9 +51,15 @@ public sealed class FixedLengthMessageHandler
 		return messages;
 	}
 
-	
+
 	public void Reset()
 	{
 		_buffer.Clear();
+	}
+
+	/// <inheritdoc />
+	public void Dispose()
+	{
+		_buffer.Dispose();
 	}
 }

@@ -4,7 +4,7 @@ using Jbi.TcpLib.Serialization;
 namespace Jbi.TcpLib.Handler;
 
 public sealed class LengthPrefixMessageHandler(int bufferSize, LengthPrefixMessageHandler.PrefixType prefixType, Endianness endianness)
-	: IMessageHandler
+	: IMessageHandler, IDisposable
 {
 	private readonly Buffer _buffer = new (bufferSize);
 	private readonly PrefixType _prefixType = prefixType;
@@ -22,7 +22,7 @@ public sealed class LengthPrefixMessageHandler(int bufferSize, LengthPrefixMessa
 		
 		_buffer.Write(bytes);
 	}
-	
+
 	public IReadOnlyCollection<PooledMemory<byte>> CheckForMessages()
 	{
 		List<PooledMemory<byte>> messages = [];
@@ -71,6 +71,17 @@ public sealed class LengthPrefixMessageHandler(int bufferSize, LengthPrefixMessa
 		return messages;
 	}
 
+	public void Reset()
+	{
+		_buffer.Clear();
+	}
+
+	/// <inheritdoc />
+	public void Dispose()
+	{
+		_buffer.Dispose();
+	}
+
 	private long GetMessageLength()
 	{
 		return _prefixType switch
@@ -80,11 +91,6 @@ public sealed class LengthPrefixMessageHandler(int bufferSize, LengthPrefixMessa
 			PrefixType.Long => _endianness == Endianness.BigEndian ? BinaryPrimitives.ReadInt64BigEndian(_buffer.Memory.Span) : BinaryPrimitives.ReadInt64LittleEndian(_buffer.Memory.Span),
 			_ => throw new ArgumentOutOfRangeException()
 		};
-	}
-
-	public void Reset()
-	{
-		_buffer.Clear();
 	}
 
 	private int GetNumberOfBytesForMessageLength()

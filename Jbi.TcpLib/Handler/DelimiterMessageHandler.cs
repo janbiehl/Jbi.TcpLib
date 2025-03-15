@@ -10,28 +10,30 @@ namespace Jbi.TcpLib.Handler;
 /// single delimiter = HelloWorld\0This is a test!\0 - Here will be two messages read.
 /// multiple delimiter = {start}HelloWorld{end}{start}This is a test{end}
 /// </remarks>
-public sealed class DelimiterMessageHandler : IMessageHandler
+public sealed class DelimiterMessageHandler : IMessageHandler, IDisposable
 {
 	private readonly Buffer _buffer;
+
 	private readonly byte[]? _delimititerStartBytes;
+
 	private readonly byte[] _delimiterEndBytes;
 
 	public int Length => _buffer.Position;
-	
+
 	public DelimiterMessageHandler(int bufferSize, Encoding encoding, string delimiter)
 	{
 		_buffer = new Buffer(bufferSize);
 		_delimititerStartBytes = null;
 		_delimiterEndBytes = encoding.GetBytes(delimiter);
 	}
-	
+
 	public DelimiterMessageHandler(int bufferSize, Encoding encoding, string startDelimiter, string endDelimiter)
 	{
 		_buffer = new Buffer(bufferSize);
 		_delimititerStartBytes = encoding.GetBytes(startDelimiter);
 		_delimiterEndBytes = encoding.GetBytes(endDelimiter);
 	}
-	
+
 	/// <inheritdoc />
 	public void AppendBytes(params ReadOnlySpan<byte> bytes)
 	{
@@ -60,6 +62,12 @@ public sealed class DelimiterMessageHandler : IMessageHandler
 		} while (true);
 
 		return messages;
+	}
+
+	/// <inheritdoc />
+	public void Dispose()
+	{
+		_buffer.Dispose();
 	}
 
 	/// <summary>
