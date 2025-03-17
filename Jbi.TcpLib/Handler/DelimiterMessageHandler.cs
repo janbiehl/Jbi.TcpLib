@@ -133,15 +133,8 @@ public sealed class DelimiterMessageHandler : IMessageHandler, IDisposable
 			}
 
 			// We got a well formatted message
-			// <start>abcdef<end>
-			_buffer.RemoveLeading(_delimititerStartBytes!.Length);
-			
-			// abcdef<end>
-			var content = _buffer.Read(endDelimiterIndex - _delimititerStartBytes.Length);
-
-			// <end>
-			_buffer.RemoveLeading(_delimiterEndBytes.Length);
-
+			// We do read the full message with start and end delimiter
+			var content = _buffer.Read(endDelimiterIndex + _delimiterEndBytes.Length);
 			return content;
 		}
 	}
