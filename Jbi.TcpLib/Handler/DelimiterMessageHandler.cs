@@ -137,7 +137,7 @@ public sealed class DelimiterMessageHandler : IMessageHandler, IDisposable
 			_buffer.RemoveLeading(_delimititerStartBytes!.Length);
 			
 			// abcdef<end>
-			var content = _buffer.Read(endDelimiterIndex + 1 - _delimititerStartBytes.Length);
+			var content = _buffer.Read(endDelimiterIndex - _delimititerStartBytes.Length);
 
 			// <end>
 			_buffer.RemoveLeading(_delimiterEndBytes.Length);
